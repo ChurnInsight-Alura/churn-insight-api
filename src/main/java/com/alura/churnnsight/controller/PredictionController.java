@@ -1,11 +1,14 @@
 package com.alura.churnnsight.controller;
 
 import com.alura.churnnsight.dto.DataMakePrediction;
+import com.alura.churnnsight.dto.DataPredictionResult;
 import com.alura.churnnsight.service.PredictionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/predict")
@@ -18,9 +21,11 @@ public class PredictionController {
     public String prediction(){
             return  "Deposite microservicio";
         }
-    @PostMapping
-    public ResponseEntity inferPrediction(@RequestBody @Valid DataMakePrediction data){
-        var dataPredictionResult = predictionService.predict(data);
-        return  ResponseEntity.ok(dataPredictionResult);
-        }
+
+    @PostMapping("/{id}")
+    public Mono<ResponseEntity<DataPredictionResult>> inferPrediction(@PathVariable long id) {
+        return predictionService.predictForClient(id)
+                .map(ResponseEntity::ok);
+    }
+
 }
