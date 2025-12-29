@@ -1,10 +1,20 @@
 package com.alura.churnnsight.dto;
 
-import com.alura.churnnsight.model.enumeration.Prevision;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record DataPredictionResult(
-        Prevision prevision,
-        Double probabilidad
-) {
+        @JsonProperty("CustomerId")
+        String customerId,
 
-}
+        @JsonProperty("PredictedProba")
+        Double predictedProba,
+
+        @JsonProperty("PredictedLabel")
+        Integer predictedLabel,
+
+        @JsonProperty("CustomerSegment")
+        String customerSegment,
+
+        @JsonProperty("InterventionPriority")
+        String interventionPriority
+) {}

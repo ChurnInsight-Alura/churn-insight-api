@@ -1,38 +1,49 @@
 package com.alura.churnnsight.dto;
 
-import com.alura.churnnsight.model.enumeration.Plan;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 
-
 public record DataMakePrediction(
-        @NotNull(message = "El id de cliente es obligatorio")
-        Long id,
+        @NotBlank(message = "CustomerId es obligatorio")
+        @JsonProperty("CustomerId")
+        String customerId,
 
-        @JsonProperty("tiempo_contrato_meses")
-        @PositiveOrZero(message = "El tiempo de contrato no puede ser negativo")
-        Integer tiempoContratoMeses,
+        @NotNull(message = "CreditScore es obligatorio")
+        @Min(value = 0, message = "CreditScore no puede ser negativo")
+        @JsonProperty("CreditScore")
+        Integer creditScore,
 
-        @NotNull(message = "El plan (BASIC, STANDARD, PREMIUM) es obligatorio")
-        Plan plan,
+        @NotBlank(message = "Geography es obligatorio")
+        @JsonProperty("Geography")
+        String geography,
 
-        @JsonProperty("uso_mensual")
-        @DecimalMin(value = "0.0", message = "El uso mensual debe ser 0 o superior")
-        Float usoMensual,
+        @NotNull(message = "Gender es obligatorio (0 o 1)")
+        @Min(0) @Max(1)
+        @JsonProperty("Gender")
+        Integer gender,
 
-        @JsonProperty("retrasos_pago_90d")
-        @PositiveOrZero(message = "Los retrasos no pueden ser negativos")
-        Integer retrasosPago90d,
+        @NotNull(message = "Age es obligatorio")
+        @Min(value = 0, message = "Age no puede ser negativa")
+        @JsonProperty("Age")
+        Integer age,
 
-        @JsonProperty("tickets_soporte_30d")
-        @PositiveOrZero(message = "La cantidad de tickets no puede ser negativa")
-        Integer ticketsSoporte30d,
+        @NotNull(message = "Tenure es obligatorio")
+        @Min(value = 0, message = "Tenure no puede ser negativo")
+        @JsonProperty("Tenure")
+        Integer tenure,
 
-        @JsonProperty("dias_desde_ultimo_login")
-        @PositiveOrZero(message = "Los días no pueden ser negativos")
-        Integer diasDesdeUltimoLogin,
+        @NotNull(message = "Balance es obligatorio")
+        @DecimalMin(value = "0.0", message = "Balance no puede ser negativo")
+        @JsonProperty("Balance")
+        Double balance,
 
-        @JsonProperty("autopago_activo")
-        @NotNull(message = "Debe indicar si el autopago está activo")
-        Boolean autopagoActivo
+        @NotNull(message = "NumOfProducts es obligatorio")
+        @Min(value = 0, message = "NumOfProducts no puede ser negativo")
+        @JsonProperty("NumOfProducts")
+        Integer numOfProducts,
+
+        @NotNull(message = "IsActiveMember es obligatorio (0 o 1)")
+        @Min(0) @Max(1)
+        @JsonProperty("IsActiveMember")
+        Integer isActiveMember
 ) {}
