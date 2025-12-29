@@ -1,29 +1,21 @@
 package com.alura.churnnsight.service;
 
-import com.alura.churnnsight.dto.PredictionRequest;
-import com.alura.churnnsight.dto.PredictionResponse;
+import com.alura.churnnsight.client.FastApiClient;
+import com.alura.churnnsight.dto.DataMakePrediction;
+import com.alura.churnnsight.dto.DataPredictionResult;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
+import reactor.core.publisher.Mono;
 
 @Service
 public class PredictionService {
+    private final FastApiClient fastApiClient;
 
-    private final RestTemplate restTemplate;
-
-    private final String PYTHON_SERVICE_URL = "http://localhost:8000/predict";
-
-    public PredictionService() {
-        this.restTemplate = new RestTemplate();
+    public PredictionService(FastApiClient fastApiClient) {
+        this.fastApiClient = fastApiClient;
     }
 
-    public PredictionResponse obtenerPrediccion(PredictionRequest request) {
-        try {
-
-            return restTemplate.postForObject(PYTHON_SERVICE_URL, request, PredictionResponse.class);
-        } catch (ResourceAccessException e) {
-
-            throw new RuntimeException("Servicio de IA no disponible");
-        }
+    // Ya no devuelve null, ahora llama al cliente de Python
+    public Mono<DataPredictionResult> predict(DataMakePrediction data) {
+        return fastApiClient.predict(data);
     }
 }
