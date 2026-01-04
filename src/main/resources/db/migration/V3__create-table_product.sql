@@ -1,0 +1,5 @@
+CREATE TABLE product
+ (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name varchar(100) NOT NULL UNIQUE
+);

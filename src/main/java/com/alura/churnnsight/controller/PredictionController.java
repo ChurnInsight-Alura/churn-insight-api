@@ -22,9 +22,9 @@ public class PredictionController {
             return  "Deposite microservicio";
         }
 
-    @PostMapping("/{id}")
-    public Mono<ResponseEntity<DataPredictionResult>> inferPrediction(@PathVariable long id) {
-        return predictionService.predictForClient(id)
+    @PostMapping("/{customerId}")
+    public Mono<ResponseEntity<DataPredictionResult>> inferPrediction(@PathVariable String customerId) {
+        return predictionService.predictForClient(customerId)
                 .map(ResponseEntity::ok);
     }
 
