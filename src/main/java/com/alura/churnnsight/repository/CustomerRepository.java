@@ -13,7 +13,7 @@ public interface CustomerRepository extends JpaRepository<Customer,Long> {
     Integer CountProductsByCostumerId(@Param("customerId") Long id);
 
     @Query("SELECT SUM(a.balance) FROM Customer c JOIN c.accounts a WHERE c.id = :customerId")
-    Double CountBalanceByCostumerId(@Param("customerId") Long id);
+    Float CountBalanceByCostumerId(@Param("customerId") Long id);
 
     Optional<Customer> findByCustomerIdIgnoreCase(String customerId);
 }

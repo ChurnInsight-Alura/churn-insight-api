@@ -17,12 +17,12 @@ public record DataMakePrediction(
         Integer Gender,
         Integer Age,
         Integer Ternure,
-        Double Balance,
+        Float Balance,
         Integer NumOfProducts,
         Integer IsActiveMember
 ) {
 
-        public DataMakePrediction(Customer customer,Double balance, Integer numOfProducts, Integer isActiveMember){
+        public DataMakePrediction(Customer customer,Float balance, Integer numOfProducts, Integer isActiveMember){
                 this(
                         customer.getCustomerId(),
                         customer.getGeography(),
