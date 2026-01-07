@@ -174,17 +174,18 @@ public class PredictionService {
         DataIntegrationResponse response = fastApiClient.predictIntegration(req).block();
         if (response == null) throw new IllegalStateException("Prediction services returned null");
 
-        // Fecha lógica de predicción (la del UNIQUE)
-        LocalDate today = LocalDate.now();
+        // Fecha lógica de predicción QUINCENAL (bucket 1 o 16)
+        LocalDate execDate = (refDate != null) ? refDate : LocalDate.now();
+        LocalDate bucketDate = getQuincenaBucket(execDate);
 
-        // Buscar si ya existe predicción hoy
+        // Buscar si ya existe predicción para esta quincena
         Prediction prediction = predictionRepository
-                .findByCustomerIdAndPredictionDate(customer.getId(), today)
+                .findByCustomerIdAndPredictionDate(customer.getId(), bucketDate)
                 .orElseGet(Prediction::new);
 
         // Setear campos (INSERT o UPDATE)
         prediction.setCustomer(customer);
-        prediction.setPredictionDate(today);
+        prediction.setPredictionDate(bucketDate);
         prediction.setPredictedProba(response.predictedProba());
         prediction.setPredictedLabel(response.predictedLabel());
         prediction.setCustomerSegment(response.customerSegment());
@@ -198,5 +199,10 @@ public class PredictionService {
         return response;
     }
 
+    private LocalDate getQuincenaBucket(LocalDate date) {
+        return (date.getDayOfMonth() <= 15)
+                ? date.withDayOfMonth(1)
+                : date.withDayOfMonth(16);
+    }
 
 }
