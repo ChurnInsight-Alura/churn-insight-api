@@ -18,9 +18,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
 import java.util.List;
+import reactor.core.scheduler.Schedulers;
+
 
 @RestController
 @RequestMapping("/predict")
@@ -60,15 +63,35 @@ public class PredictionController {
         return predictionService.predictIntegration(request)
                 .map(ResponseEntity::ok);
     }
-
     @PostMapping("/integration/{customerId}")
-    public Mono<ResponseEntity<DataIntegrationResponse>> inferIntegrationFromDb(
+    public Mono<ResponseEntity<DataPredictionDetail>> inferIntegrationFromDb(
             @PathVariable String customerId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate refDate) {
 
+        Mono<ResponseEntity<DataPredictionDetail>> latestMono =
+                Mono.fromCallable(() -> {
+                    Pageable pageable = PageRequest.of(
+                            0,
+                            1,
+                            Sort.by(Sort.Direction.DESC, "predictedAt")
+                    );
+
+                    Page<DataPredictionDetail> page = predictionService.getPredictionsByCustomerId(customerId, pageable);
+
+                    if (page.hasContent()) {
+                        return ResponseEntity.ok(page.getContent().get(0));
+                    }
+
+
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .<DataPredictionDetail>body(null);
+                }).subscribeOn(Schedulers.boundedElastic());
+
         return predictionService.predictIntegrationFromDb(customerId, refDate)
-                .map(ResponseEntity::ok);
+                .flatMap(ignored -> latestMono);
     }
+
+
 
     @PostMapping("/integration/batch")
     public Mono<ResponseEntity<List<DataIntegrationResponse>>> inferPredictionIntegrationBatch(

@@ -1,0 +1,1 @@
+ALTER TABLE prediction ADD COLUMN ai_insight TEXT;
