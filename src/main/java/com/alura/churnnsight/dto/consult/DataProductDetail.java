@@ -4,6 +4,7 @@ import com.alura.churnnsight.model.Product;
 
 public record DataProductDetail(
         String productName
+
 ) {
     public DataProductDetail(Product product){
         this(

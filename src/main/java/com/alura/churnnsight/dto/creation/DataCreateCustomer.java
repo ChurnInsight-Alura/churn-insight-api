@@ -5,7 +5,7 @@ import java.time.LocalDate;
 public record DataCreateCustomer(
         String customerId,
         String geography,
-        String gender,           // 👈 String
+        String gender,
         LocalDate birthDate,
         LocalDate createdAt,
         String surname,

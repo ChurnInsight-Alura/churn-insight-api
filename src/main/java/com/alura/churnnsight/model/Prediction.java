@@ -45,6 +45,14 @@ public class Prediction {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
+    @Column(name = "ai_insight", columnDefinition = "TEXT")
+    private String aiInsight;
+
+    @Column(name = "ai_insight_status", nullable = false)
+    private String aiInsightStatus = "MISSING";
+
+
+
     public Prediction(DataPredictionResult response, Customer customer) {
         this.predictedProba = response.PredictedProba();
         this.predictedLabel = response.PredictedLabel();
