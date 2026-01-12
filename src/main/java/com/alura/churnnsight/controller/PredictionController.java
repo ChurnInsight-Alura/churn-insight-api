@@ -95,7 +95,7 @@ public class PredictionController {
     public Mono<ResponseEntity<List<DataIntegrationResponse>>> inferPredictionIntegrationBatch(
             @RequestBody List<DataIntegrationRequest> requestList
     ) {
-        return predictionService.predictIntegrationBatch(requestList)
+        return predictionService.predictIntegrationBatchUpsertAndPersist(requestList)
                 .map(ResponseEntity::ok);
     }
 
