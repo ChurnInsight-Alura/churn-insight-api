@@ -29,4 +29,6 @@ public interface CustomerRepository extends JpaRepository<Customer,Long> {
 
     @Query("SELECT a FROM Customer c JOIN c.accounts a WHERE c.id = :customerId")
     Page<Account> findAccountsByCustomerId(@Param("customerId") Long id, Pageable pageable);
+
+    Optional<Customer> findByCustomerId(String customerId);
 }
