@@ -11,6 +11,7 @@ public interface CustomerSessionRepository
 
     List<CustomerSession> findByCustomerId(Long customerId);
     Optional<CustomerSession> findBySessionId(String sessionId);
+    Optional<CustomerSession> findByCustomerIdAndSessionId(Long customerId, String sessionId);
 
 }
 

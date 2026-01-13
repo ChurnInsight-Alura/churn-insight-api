@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class FastApiClient {
@@ -52,5 +53,14 @@ public class FastApiClient {
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<DataIntegrationResponse>>() {})
                 .timeout(Duration.ofSeconds(props.getTimeoutSeconds()));
+    }
+
+    public Mono<Map<String, Object>> predictBatchStats(List<DataIntegrationRequest> batch) {
+        return webClient.post()
+                .uri(props.getPredictBatchStatsPath()) // o desde properties si lo tienes configurable
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(batch)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 }

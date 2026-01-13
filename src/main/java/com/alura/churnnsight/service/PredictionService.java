@@ -2,6 +2,7 @@ package com.alura.churnnsight.service;
 
 import com.alura.churnnsight.client.FastApiClient;
 import com.alura.churnnsight.client.LlmClient;
+import com.alura.churnnsight.dto.BatchProResponse;
 import com.alura.churnnsight.dto.DataMakePrediction;
 import com.alura.churnnsight.dto.DataPredictionResult;
 import com.alura.churnnsight.dto.consult.DataPredictionDetail;
@@ -10,21 +11,29 @@ import com.alura.churnnsight.dto.integration.*;
 import com.alura.churnnsight.model.*;
 import com.alura.churnnsight.model.enumeration.InterventionPriority;
 import com.alura.churnnsight.repository.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import com.alura.churnnsight.service.helpers.BirthDateEstimator;
 import com.alura.churnnsight.service.helpers.GenderMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
 
 import java.util.Map;
@@ -35,7 +44,9 @@ import java.util.stream.Collectors;
 public class PredictionService {
 
     private final FastApiClient fastApiClient;
-    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Autowired
+    private ObjectMapper mapper;
 
     @Autowired
     private CustomerRepository customerRepository;
@@ -58,8 +69,24 @@ public class PredictionService {
     @Autowired
     private LlmClient llmClient;
 
+    @Autowired
+    private BatchRunRepository batchRunRepository;
+
+    @Autowired
+    private BatchRunCustomerRepository batchRunCustomerRepository;
+
+    @Autowired
+    private PlatformTransactionManager txManager;
+
+    private TransactionTemplate txTemplate;
+
     public PredictionService(FastApiClient fastApiClient) {
         this.fastApiClient = fastApiClient;
+    }
+
+    @PostConstruct
+    void initTxTemplate() {
+        this.txTemplate = new TransactionTemplate(txManager);
     }
 
     // EXISTENTE: predicción 1 cliente desde DB
@@ -133,116 +160,11 @@ public class PredictionService {
 
     // EXISTENTE: integration desde DB + persistencia
 
-    public Mono<DataIntegrationResponse> predictIntegrationFromDb(String customerId, LocalDate refDate) {
-        LocalDate effectiveRefDate = (refDate != null) ? refDate : LocalDate.now();
-        return Mono.fromCallable(() -> predictIntegrationFromDbAndPersist(customerId, effectiveRefDate))
-                .subscribeOn(Schedulers.boundedElastic());
-    }
-
     public Mono<List<DataIntegrationResponse>> predictIntegrationBatch(List<DataIntegrationRequest> requests) {
         return fastApiClient.predictBatch(requests);
     }
 
-    @Transactional
-    protected DataIntegrationResponse predictIntegrationFromDbAndPersist(String customerId, LocalDate refDate) {
-
-        Customer customer = customerRepository
-                .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
-
-        Integer rowNumber = customer.getId() == null ? null : customer.getId().intValue();
-        int tenureMonths = customer.getTenure(refDate);
-
-        Float balance = customerRepository.CountBalanceByCostumerId(customer.getId());
-        float balanceF = (balance == null) ? 0f : balance.floatValue();
-
-        Integer numProductsDb = customerRepository.CountProductsByCostumerId(customer.getId());
-        int numProducts = (numProductsDb == null) ? 0 : numProductsDb;
-
-        CustomerStatus st = customerRepository.findStatusByCustomerId(customer.getId());
-        Integer creditScore = (st != null) ? st.getCreditScore() : null;
-        int isActiveMember = (st != null && Boolean.TRUE.equals(st.getIsActiveMember())) ? 1 : 0;
-        int hasCrCard = (st != null && Boolean.TRUE.equals(st.getHasCrCard())) ? 1 : 0;
-
-        String gender = (customer.getGender() == null) ? null : customer.getGender().name();
-
-        var txs = customerTransactionRepository.findByCustomerId(customer.getId());
-        var ses = customerSessionRepository.findByCustomerId(customer.getId());
-
-        DataIntegrationRequest req = new DataIntegrationRequest(
-                new ClienteIn(
-                        rowNumber,
-                        customer.getCustomerId(),
-                        customer.getSurname(),
-                        creditScore,
-                        customer.getGeography(),
-                        gender,
-                        customer.getAge(),
-                        tenureMonths,
-                        balanceF,
-                        numProducts,
-                        hasCrCard,
-                        isActiveMember,
-                        customer.getEstimatedSalary() == null ? null : customer.getEstimatedSalary().floatValue()
-                ),
-                txs.stream().map(t -> new TransaccionIn(
-                        t.getTransactionId(),
-                        customer.getCustomerId(),
-                        t.getTransactionDate(),
-                        (float) t.getAmount(),
-                        t.getTransactionType()
-                )).toList(),
-                ses.stream().map(s -> new SesionIn(
-                        s.getSessionId(),
-                        customer.getCustomerId(),
-                        s.getSessionDate(),
-                        (float) s.getDurationMin(),
-                        s.getUsedTransfer(),
-                        s.getUsedPayment(),
-                        s.getUsedInvest(),
-                        s.getOpenedPush(),
-                        s.getFailedLogin()
-                )).toList()
-        );
-
-        DataIntegrationResponse response = fastApiClient.predictIntegration(req).block();
-        if (response == null) throw new IllegalStateException("Prediction services returned null");
-
-        LocalDate execDate = (refDate != null) ? refDate : LocalDate.now();
-        LocalDate bucketDate = getQuincenaBucket(execDate);
-
-        Prediction prediction = predictionRepository
-                .findByCustomerIdAndPredictionDate(customer.getId(), bucketDate)
-                .orElseGet(Prediction::new);
-
-        prediction.setCustomer(customer);
-        prediction.setPredictionDate(bucketDate);
-        prediction.setPredictedProba(response.predictedProba());
-        prediction.setPredictedLabel(response.predictedLabel());
-        prediction.setCustomerSegment(response.customerSegment());
-        prediction.setInterventionPriority(
-                InterventionPriority.fromDataLabel(response.interventionPriority())
-        );
-
-        if (shouldGenerateInsight(prediction)) {
-            String prompt = buildRetentionPlanPrompt(req, response);
-
-            String insight;
-            try {
-                insight = llmClient.generateInsight(prompt);
-            } catch (Exception e) {
-                insight = null;
-            }
-
-            String stored = normalizeInsightForStorage(insight);
-            prediction.setAiInsight(stored);
-            prediction.setAiInsightStatus(classifyAiInsightStatus(stored));
-        }
-
-        predictionRepository.save(prediction);
-
-        return response;
-    }
+    // HELPERS
 
     private String buildRetentionPlanPrompt(Object contextoCliente, Object prediccionModelo) {
         String contextoJson = toPrettyJson(contextoCliente);
@@ -353,10 +275,8 @@ public class PredictionService {
         return false;
     }
 
-    private LocalDate getQuincenaBucket(LocalDate date) {
-        return (date.getDayOfMonth() <= 15)
-                ? date.withDayOfMonth(1)
-                : date.withDayOfMonth(16);
+    private LocalDate getMonthBucket(LocalDate date) {
+        return date.withDayOfMonth(1);
     }
 
     // Integration BATCH + UPSERT + PERSIST
@@ -383,7 +303,7 @@ public class PredictionService {
                         (a, b) -> a
                 ));
 
-        LocalDate bucketDate = getQuincenaBucket(LocalDate.now());
+        LocalDate bucketDate = getMonthBucket(LocalDate.now());
         // 3) Persistir todo por cada respuesta
         for (DataIntegrationResponse res : responses) {
 
@@ -432,6 +352,20 @@ public class PredictionService {
             prediction.setCustomerSegment(res.customerSegment());
             prediction.setInterventionPriority(InterventionPriority.fromDataLabel(res.interventionPriority()));
 
+            // 3.5 LLM en batch
+            if (shouldGenerateInsight(prediction)) {
+                String prompt = buildRetentionPlanPrompt(req, res);
+                String insight;
+                try {
+                    insight = llmClient.generateInsight(prompt);
+                } catch (Exception e) {
+                    insight = null;
+                }
+                String stored = normalizeInsightForStorage(insight);
+                prediction.setAiInsight(stored);
+                prediction.setAiInsightStatus(classifyAiInsightStatus(stored));
+            }
+
             predictionRepository.save(prediction);
         }
 
@@ -471,7 +405,7 @@ public class PredictionService {
         for (TransaccionIn tx : transacciones) {
 
             CustomerTransaction entity = customerTransactionRepository
-                    .findByTransactionId(tx.transactionId())
+                    .findByCustomerIdAndTransactionId(customer.getId(),tx.transactionId())
                     .orElseGet(CustomerTransaction::new);
 
             entity.setTransactionId(tx.transactionId());
@@ -493,7 +427,7 @@ public class PredictionService {
         for (SesionIn s : sesiones) {
 
             CustomerSession entity = customerSessionRepository
-                    .findBySessionId(s.sessionId())
+                    .findByCustomerIdAndSessionId(customer.getId(),s.sessionId())
                     .orElseGet(CustomerSession::new);
 
             entity.setSessionId(s.sessionId());
@@ -519,6 +453,300 @@ public class PredictionService {
             );
 
             customerSessionRepository.save(entity);
+        }
+    }
+
+    private String computeBatchHash(LocalDate bucketDate, List<String> customerIds) {
+        try {
+            List<String> sorted = customerIds.stream()
+                    .filter(s -> s != null && !s.isBlank())
+                    .map(String::trim)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .toList();
+
+            String base = bucketDate + "|" + String.join(",", sorted);
+
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(base.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot compute batch hash", e);
+        }
+    }
+
+    public Mono<DataIntegrationResponse> predictIntegrationFromDbPro(String customerId, LocalDate refDate) {
+        LocalDate effectiveRefDate = (refDate != null) ? refDate : LocalDate.now();
+        LocalDate bucketDate = getMonthBucket(effectiveRefDate);
+
+        return Mono.fromCallable(() -> {
+
+            Customer customer = customerRepository
+                    .findByCustomerIdIgnoreCase(customerId)
+                    .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+
+            // 1) si ya existe para bucket => devolver desde DB (PERO completa LLM si falta)
+            var existingOpt = predictionRepository.findByCustomerIdAndPredictionDateFetchCustomer(customer.getId(), bucketDate);
+
+            if (existingOpt.isPresent()) {
+                Prediction p = existingOpt.get();
+
+                // Si existe pero NO tiene insight, generarlo y actualizar
+                if (shouldGenerateInsight(p)) {
+
+                    // Necesitamos el request para construir el prompt (reusa tu lógica)
+                    DataIntegrationRequest req = buildIntegrationRequestFromDb(customer, effectiveRefDate);
+
+                    // Res "similar" para el prompt (no cambia churn)
+                    DataIntegrationResponse pseudoRes = new DataIntegrationResponse(
+                            customer.getCustomerId(),
+                            (float) p.getPredictedProba(),
+                            p.getPredictedLabel(),
+                            p.getCustomerSegment(),
+                            p.getInterventionPriority() != null ? p.getInterventionPriority().toString() : null,
+                            null,
+                            null
+                    );
+
+                    String prompt = buildRetentionPlanPrompt(req, pseudoRes);
+
+                    String insight;
+                    try {
+                        insight = llmClient.generateInsight(prompt);
+                    } catch (Exception e) {
+                        insight = null;
+                    }
+
+                    String stored = normalizeInsightForStorage(insight);
+                    p.setAiInsight(stored);
+                    p.setAiInsightStatus(classifyAiInsightStatus(stored));
+
+                    predictionRepository.save(p);
+                }
+
+                return toIntegrationResponse(p);
+            }
+
+            // 2) si no existe => generar + persistir
+            DataIntegrationRequest req = buildIntegrationRequestFromDb(customer, effectiveRefDate);
+
+            DataIntegrationResponse res = fastApiClient.predictIntegration(req).block();
+            if (res == null) throw new IllegalStateException("Prediction services returned null");
+
+            Prediction p = new Prediction();
+            p.setCustomer(customer);
+            p.setPredictionDate(bucketDate);
+            p.setPredictedProba(res.predictedProba());
+            p.setPredictedLabel(res.predictedLabel());
+            p.setCustomerSegment(res.customerSegment());
+            p.setInterventionPriority(InterventionPriority.fromDataLabel(res.interventionPriority()));
+
+            // LLM siempre se intenta aquí (si falla, se guarda error/missing)
+            String prompt = buildRetentionPlanPrompt(req, res);
+            String insight;
+            try { insight = llmClient.generateInsight(prompt); } catch (Exception e) { insight = null; }
+
+            String stored = normalizeInsightForStorage(insight);
+            p.setAiInsight(stored);
+            p.setAiInsightStatus(classifyAiInsightStatus(stored));
+
+            predictionRepository.save(p);
+
+            return toIntegrationResponse(p);
+
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    private DataIntegrationRequest buildIntegrationRequestFromDb(Customer customer, LocalDate refDate) {
+
+        Integer rowNumber = customer.getId() == null ? null : customer.getId().intValue();
+        int tenureMonths = customer.getTenure(refDate);
+
+        Float balance = customerRepository.CountBalanceByCostumerId(customer.getId());
+        float balanceF = (balance == null) ? 0f : balance.floatValue();
+
+        Integer numProductsDb = customerRepository.CountProductsByCostumerId(customer.getId());
+        int numProducts = (numProductsDb == null) ? 0 : numProductsDb;
+
+        CustomerStatus st = customerRepository.findStatusByCustomerId(customer.getId());
+        Integer creditScore = (st != null) ? st.getCreditScore() : null;
+        int isActiveMember = (st != null && Boolean.TRUE.equals(st.getIsActiveMember())) ? 1 : 0;
+        int hasCrCard = (st != null && Boolean.TRUE.equals(st.getHasCrCard())) ? 1 : 0;
+
+        String gender = (customer.getGender() == null) ? null : customer.getGender().name();
+
+        var txs = customerTransactionRepository.findByCustomerId(customer.getId());
+        var ses = customerSessionRepository.findByCustomerId(customer.getId());
+
+        return new DataIntegrationRequest(
+                new ClienteIn(
+                        rowNumber,
+                        customer.getCustomerId(),
+                        customer.getSurname(),
+                        creditScore,
+                        customer.getGeography(),
+                        gender,
+                        customer.getAge(),
+                        tenureMonths,
+                        balanceF,
+                        numProducts,
+                        hasCrCard,
+                        isActiveMember,
+                        customer.getEstimatedSalary() == null ? null : customer.getEstimatedSalary().floatValue()
+                ),
+                txs.stream().map(t -> new TransaccionIn(
+                        t.getTransactionId(),
+                        customer.getCustomerId(),
+                        t.getTransactionDate(),
+                        (float) t.getAmount(),
+                        t.getTransactionType()
+                )).toList(),
+                ses.stream().map(s -> new SesionIn(
+                        s.getSessionId(),
+                        customer.getCustomerId(),
+                        s.getSessionDate(),
+                        (float) s.getDurationMin(),
+                        s.getUsedTransfer(),
+                        s.getUsedPayment(),
+                        s.getUsedInvest(),
+                        s.getOpenedPush(),
+                        s.getFailedLogin()
+                )).toList()
+        );
+    }
+
+    private DataIntegrationResponse toIntegrationResponse(Prediction p) {
+        return new DataIntegrationResponse(
+                p.getCustomer().getCustomerId(),
+                (float) p.getPredictedProba(),
+                p.getPredictedLabel(),
+                p.getCustomerSegment(),
+                p.getInterventionPriority().toString(),
+                parseAiInsight(p.getAiInsight()),
+                p.getAiInsightStatus()
+        );
+    }
+
+    public Mono<BatchProResponse> predictIntegrationBatchPro(List<DataIntegrationRequest> batch) {
+        return Mono.fromCallable(() ->
+                txTemplate.execute(status -> runBatchPro(batch))
+        ).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    public Mono<BatchProResponse> predictIntegrationBatchProAll(LocalDate refDate) {
+        LocalDate effectiveRefDate = (refDate != null) ? refDate : LocalDate.now();
+
+        return Mono.fromCallable(() -> {
+
+            // 1) Traer todos los customers registrados
+            List<Customer> customers = customerRepository.findAll(); // (si son muchos, luego lo hacemos paginado)
+
+            // 2) Armar batch request desde BD
+            List<DataIntegrationRequest> batch = customers.stream()
+                    .map(c -> buildIntegrationRequestFromDb(c, effectiveRefDate))
+                    .toList();
+
+            // 3) Reusar tu batch pro (persist + stats + cache)
+            return runBatchPro(batch);
+
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Transactional
+    protected BatchProResponse runBatchPro(List<DataIntegrationRequest> batch) {
+
+        if (batch == null || batch.isEmpty()) {
+            return new BatchProResponse(getMonthBucket(LocalDate.now()), null, null, Map.of(), List.of());
+        }
+
+        LocalDate bucketDate = getMonthBucket(LocalDate.now());
+
+        // customerIds del payload
+        List<String> customerIds = batch.stream()
+                .filter(b -> b != null && b.cliente() != null && b.cliente().customerId() != null)
+                .map(b -> b.cliente().customerId())
+                .toList();
+
+        String batchHash = computeBatchHash(bucketDate, customerIds);
+
+        // 1) Si ya existe corrida => devolver desde DB (NO recalcular)
+        var existingRunOpt = batchRunRepository.findByBucketDateAndBatchHash(bucketDate, batchHash);
+        if (existingRunOpt.isPresent()) {
+            BatchRun run = existingRunOpt.get();
+            List<String> ids = batchRunCustomerRepository.findCustomerIdsByBatchRunId(run.getId());
+
+            // traer predicciones guardadas
+            List<String> idsLower = ids.stream().map(String::toLowerCase).toList();
+            List<Prediction> preds = predictionRepository.findByBucketDateAndCustomerIdsFetchCustomer(bucketDate, idsLower);
+
+            List<DataIntegrationResponse> responses = preds.stream()
+                    .map(this::toIntegrationResponse)
+                    .toList();
+
+            Map<String, Object> stats = parseStatsJson(run.getStatsJson());
+
+            return new BatchProResponse(bucketDate, run.getId(), batchHash, stats, responses);
+        }
+
+        // 2) Si no existe corrida => generar predicciones+LLM+persist (usa tu batch upsert existente)
+        // IMPORTANTE: este método debe guardar Prediction con aiInsight y aiInsightStatus
+        persistBatchUpsertAndPredictions(batch); // ya lo tienes
+
+        // 3) stats del grupo (FastAPI batch_stats) y persistir
+        Map<String, Object> stats = fastApiClient.predictBatchStats(batch).block();
+        if (stats == null) stats = Map.of("error", "stats_null");
+
+        // 4) guardar run
+        BatchRun run = new BatchRun();
+        run.setBucketDate(bucketDate);
+        run.setBatchHash(batchHash);
+        run.setStatsJson(toJson(stats));
+        batchRunRepository.save(run);
+
+        // 5) guardar clientes del run
+        for (String cid : customerIds.stream().distinct().toList()) {
+            batchRunCustomerRepository.save(new BatchRunCustomer(run.getId(), cid));
+        }
+
+        // 6) responder desde DB (con aiInsight)
+        List<String> idsLower = customerIds.stream().distinct().map(String::toLowerCase).toList();
+        List<Prediction> preds = predictionRepository.findByBucketDateAndCustomerIdsFetchCustomer(bucketDate, idsLower);
+
+        List<DataIntegrationResponse> responses = preds.stream()
+                .map(this::toIntegrationResponse)
+                .toList();
+
+        return new BatchProResponse(bucketDate, run.getId(), batchHash, stats, responses);
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return mapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return "{\"error\":\"SERIALIZE\",\"message\":\"Cannot serialize stats\"}";
+        }
+    }
+
+    private Map<String, Object> parseStatsJson(String json) {
+        if (json == null || json.isBlank()) return Map.of();
+        try {
+            return mapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of("error", "PARSE_STATS", "raw", json);
+        }
+    }
+
+    private Object  parseAiInsight(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            JsonNode node = mapper.readTree(raw);
+
+            if (node.isTextual()) {
+                node = mapper.readTree(node.asText());
+            }
+            return mapper.convertValue(node, Object.class);
+        } catch (Exception e) {
+            return Map.of("error", "NON_JSON", "message", raw);
         }
     }
 

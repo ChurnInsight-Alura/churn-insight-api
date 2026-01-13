@@ -1,5 +1,6 @@
 package com.alura.churnnsight.controller;
 
+import com.alura.churnnsight.dto.BatchProResponse;
 import com.alura.churnnsight.dto.DataMakePrediction;
 import com.alura.churnnsight.dto.DataPredictionResult;
 import com.alura.churnnsight.dto.consult.DataPredictionDetail;
@@ -56,6 +57,7 @@ public class PredictionController {
                 : ResponseEntity.notFound().build();
     }
 
+    // PARA MVP
     @PostMapping("/integration")
     public Mono<ResponseEntity<DataIntegrationResponse>> inferPredictionIntegration(
             @RequestBody DataIntegrationRequest request
@@ -63,39 +65,31 @@ public class PredictionController {
         return predictionService.predictIntegration(request)
                 .map(ResponseEntity::ok);
     }
+
     @PostMapping("/integration/{customerId}")
-    public Mono<ResponseEntity<DataPredictionDetail>> inferIntegrationFromDb(
+    public Mono<ResponseEntity<DataIntegrationResponse>> inferIntegrationFromDb(
             @PathVariable String customerId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate refDate) {
-
-        Mono<ResponseEntity<DataPredictionDetail>> latestMono =
-                Mono.fromCallable(() -> {
-                    Pageable pageable = PageRequest.of(
-                            0,
-                            1,
-                            Sort.by(Sort.Direction.DESC, "predictedAt")
-                    );
-
-                    Page<DataPredictionDetail> page = predictionService.getPredictionsByCustomerId(customerId, pageable);
-
-                    if (page.hasContent()) {
-                        return ResponseEntity.ok(page.getContent().get(0));
-                    }
-
-
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .<DataPredictionDetail>body(null);
-                }).subscribeOn(Schedulers.boundedElastic());
-
-        return predictionService.predictIntegrationFromDb(customerId, refDate)
-                .flatMap(ignored -> latestMono);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate refDate
+    ) {
+        return predictionService.predictIntegrationFromDbPro(customerId, refDate)
+                .map(ResponseEntity::ok);
     }
 
-    @PostMapping("/integration/batch")
-    public Mono<ResponseEntity<List<DataIntegrationResponse>>> inferPredictionIntegrationBatch(
+    //Ejecuta batch desde JSON
+    @PostMapping("/integration/batch/pro")
+    public Mono<ResponseEntity<BatchProResponse>> inferPredictionIntegrationBatchPro(
             @RequestBody List<DataIntegrationRequest> requestList
     ) {
-        return predictionService.predictIntegrationBatchUpsertAndPersist(requestList)
+        return predictionService.predictIntegrationBatchPro(requestList)
+                .map(ResponseEntity::ok);
+    }
+
+    //Ejecuta batch de BD
+    @PostMapping("/integration/batch/pro/all")
+    public Mono<ResponseEntity<BatchProResponse>> runBatchProAll(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate refDate
+    ) {
+        return predictionService.predictIntegrationBatchProAll(refDate)
                 .map(ResponseEntity::ok);
     }
 

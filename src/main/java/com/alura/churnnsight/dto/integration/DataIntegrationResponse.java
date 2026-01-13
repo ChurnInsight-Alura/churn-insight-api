@@ -1,12 +1,17 @@
 package com.alura.churnnsight.dto.integration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.fasterxml.jackson.databind.JsonNode;
 
 public record DataIntegrationResponse(
         @JsonProperty("CustomerId") String customerId,
         @JsonProperty("PredictedProba") Float predictedProba,
         @JsonProperty("PredictedLabel") Integer predictedLabel,
         @JsonProperty("CustomerSegment") String customerSegment,
-        @JsonProperty("InterventionPriority") String interventionPriority
+        @JsonProperty("InterventionPriority") String interventionPriority,
+        @JsonProperty("aiInsight") Object  aiInsight,
+        @JsonProperty("aiInsightStatus") String aiInsightStatus
+
 ) {
 }

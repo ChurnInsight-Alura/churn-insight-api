@@ -15,5 +15,6 @@ public class FastApiProperties {
     private String baseUrl;
     private String predictCustomerPath;
     private String predictBatchPath;
+    private String predictBatchStatsPath;
     private int timeoutSeconds;
 }
