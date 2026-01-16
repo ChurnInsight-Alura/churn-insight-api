@@ -173,6 +173,7 @@ public class PredictionService {
         return """
                 Actúa como un Gerente de Retención de Clientes Senior en un Banco Digital.
                 Tu objetivo es crear un plan de recuperación personalizado de 4 semanas para un cliente en riesgo de abandono.
+                Considera devolver los resultados necesarios en Euros.
                 
                 CONTEXTO DEL CLIENTE:
                 %s
