@@ -10,7 +10,7 @@ public record DataPredictionDetail(
         Float predictedProba,
         Integer predictedLabel,
         String customerSegment,
-        InterventionPriority interventionPriority,
+        String interventionPriority,
         LocalDateTime predictedAt,
         @JsonRawValue String aiInsight,
         String aiInsightStatus

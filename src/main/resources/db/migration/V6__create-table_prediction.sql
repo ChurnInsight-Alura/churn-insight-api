@@ -6,7 +6,7 @@ CREATE TABLE prediction (
     predicted_proba DOUBLE NOT NULL,
     predicted_label INT NOT NULL,
 
-    intervention_priority VARCHAR(20) NOT NULL,
+    intervention_priority VARCHAR(100) NOT NULL,
     customer_segment VARCHAR(50),
 
     prediction_date DATE NOT NULL,

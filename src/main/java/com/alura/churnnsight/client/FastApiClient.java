@@ -36,6 +36,7 @@ public class FastApiClient {
     }
 
     public Mono<DataIntegrationResponse> predictIntegration(DataIntegrationRequest request) {
+        System.out.println("Enviando Body: " + request);
         return webClient.post()
                 .uri(props.getPredictCustomerPath())
                 .contentType(MediaType.APPLICATION_JSON)
