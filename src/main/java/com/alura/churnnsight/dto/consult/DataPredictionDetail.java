@@ -1,7 +1,6 @@
 package com.alura.churnnsight.dto.consult;
 
 import com.alura.churnnsight.model.Prediction;
-import com.alura.churnnsight.model.enumeration.InterventionPriority;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 import java.time.LocalDateTime;

@@ -2,11 +2,9 @@ package com.alura.churnnsight.service;
 
 import com.alura.churnnsight.client.FastApiClient;
 import com.alura.churnnsight.client.LlmClient;
-import com.alura.churnnsight.dto.BatchProResponse;
 import com.alura.churnnsight.dto.integration.DataIntegrationRequest;
 import com.alura.churnnsight.dto.integration.DataIntegrationResponse;
 import com.alura.churnnsight.model.*;
-import com.alura.churnnsight.model.enumeration.InterventionPriority;
 import com.alura.churnnsight.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -233,7 +231,7 @@ class PredictionServiceHackathonFlowTest {
         when(p1.getCustomerSegment()).thenReturn("VIP");
         when(p1.getAiInsight()).thenReturn(null);
         when(p1.getAiInsightStatus()).thenReturn("OK");
-        when(p1.getInterventionPriority()).thenReturn(anyPriority());
+        when(p1.getInterventionPriority()).thenReturn("");
 
         Prediction p2 = mock(Prediction.class);
         when(p2.getCustomer()).thenReturn(c2);
@@ -242,7 +240,7 @@ class PredictionServiceHackathonFlowTest {
         when(p2.getCustomerSegment()).thenReturn("LOW");
         when(p2.getAiInsight()).thenReturn(null);
         when(p2.getAiInsightStatus()).thenReturn("OK");
-        when(p2.getInterventionPriority()).thenReturn(anyPriority());
+        when(p2.getInterventionPriority()).thenReturn("");
 
         when(predictionRepository.findByBucketDateAndCustomerIdsFetchCustomer(eq(expectedBucket), anyList()))
                 .thenReturn(List.of(p1, p2));
@@ -270,11 +268,5 @@ class PredictionServiceHackathonFlowTest {
         Field f = target.getClass().getDeclaredField(fieldName);
         f.setAccessible(true);
         f.set(target, value);
-    }
-
-    private static InterventionPriority anyPriority() {
-        // No asumimos nombres exactos del enum: tomamos el primero disponible
-        InterventionPriority[] values = InterventionPriority.values();
-        return values.length > 0 ? values[0] : null;
     }
 }

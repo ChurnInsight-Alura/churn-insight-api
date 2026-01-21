@@ -1,8 +1,6 @@
 package com.alura.churnnsight.dto.integration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonRawValue;
-import com.fasterxml.jackson.databind.JsonNode;
 
 public record DataIntegrationResponse(
         @JsonProperty("CustomerId") String customerId,

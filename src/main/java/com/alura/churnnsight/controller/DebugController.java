@@ -5,20 +5,20 @@ import com.alura.churnnsight.dto.consult.DataAccountDetail;
 import com.alura.churnnsight.dto.consult.DataCustomerDetail;
 import com.alura.churnnsight.dto.consult.DataCustomerStatusDetail;
 import com.alura.churnnsight.dto.consult.DataProductDetail;
+import com.alura.churnnsight.exception.NotFoundException;
 import com.alura.churnnsight.repository.AccountRepository;
 import com.alura.churnnsight.repository.CustomerRepository;
 import com.alura.churnnsight.repository.CustomerStatusRepository;
 import com.alura.churnnsight.repository.ProductRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/debug")
@@ -57,9 +57,9 @@ public class DebugController {
         return ResponseEntity.ok(page);
     }
     @GetMapping("/features/{customerId}")
-    public ResponseEntity<DataMakePrediction> getCustomerFeatures(@PathVariable String customerId) {
+    public ResponseEntity<DataMakePrediction> getCustomerFeatures(@PathVariable String customerId, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate refDate) {
         var customer = customerRepository.findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
         Long id = customer.getId();
 
@@ -71,6 +71,7 @@ public class DebugController {
 
         DataMakePrediction data = new DataMakePrediction(
                 customer,
+                customer.getTenure(LocalDate.now()),
                 customerRepository.CountBalanceByCostumerId(id),
                 customerRepository.CountProductsByCostumerId(id),
                 isActiveMember

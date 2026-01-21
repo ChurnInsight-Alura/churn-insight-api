@@ -8,15 +8,16 @@ import com.alura.churnnsight.dto.DataPredictionResult;
 import com.alura.churnnsight.dto.consult.DataPredictionDetail;
 import com.alura.churnnsight.dto.integration.*;
 
+import com.alura.churnnsight.exception.BusinessException;
+import com.alura.churnnsight.exception.DownstreamException;
+import com.alura.churnnsight.exception.NotFoundException;
 import com.alura.churnnsight.model.*;
-import com.alura.churnnsight.model.enumeration.InterventionPriority;
 import com.alura.churnnsight.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -97,25 +98,35 @@ public class PredictionService {
 
     @Transactional
     protected DataPredictionResult predictAndPersist(String customerId) {
+        LocalDate refDate = LocalDate.now();
 
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
         Long id = customer.getId();
 
+        int tenureMonths = customer.getTenure(refDate);
+
         int isActiveMember = customer.getStatus() != null && Boolean.TRUE.equals(customer.getStatus().getIsActiveMember()) ? 1 : 0;
+
+        Float balanceDb = customerRepository.CountBalanceByCostumerId(id);
+        float balance = (balanceDb == null) ? 0f : balanceDb;
+
+        Integer numProductsDb = customerRepository.CountProductsByCostumerId(id);
+        int numProducts = (numProductsDb == null) ? 0 : numProductsDb;
 
         DataMakePrediction data = new DataMakePrediction(
                 customer,
-                customerRepository.CountBalanceByCostumerId(id),
-                customerRepository.CountProductsByCostumerId(id),
+                tenureMonths,
+                balance,
+                numProducts,
                 isActiveMember
         );
 
         DataPredictionResult response = fastApiClient.predict(data).block();
         if (response == null) {
-            throw new IllegalStateException("Prediction services returned null");
+            throw new DownstreamException("FASTAPI", 502, "Null response from /predict");
         }
 
         Prediction prediction = new Prediction(response, customer);
@@ -140,13 +151,16 @@ public class PredictionService {
         }
 
         predictionRepository.save(prediction);
+        System.out.println("tenure"+tenureMonths);
+        System.out.println("balance"+balance);
+        System.out.println("numofproduct"+numProductsDb);
         return response;
     }
 
     public Page<DataPredictionDetail> getPredictionsByCustomerId(String customerId, Pageable pageable) {
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
         return predictionRepository.findByCustomerId(customer.getId(), pageable)
                 .map(DataPredictionDetail::new);
@@ -155,7 +169,7 @@ public class PredictionService {
     // EXISTENTE: integration request directo (no persiste)
 
     public Mono<DataIntegrationResponse> predictIntegration(DataIntegrationRequest request) {
-        return fastApiClient.predictIntegration(request);
+        return fastApiClient.predictIntegration(normalize(request));
     }
 
     // EXISTENTE: integration desde DB + persistencia
@@ -164,7 +178,7 @@ public class PredictionService {
         return fastApiClient.predictBatch(requests);
     }
 
-    // HELPERS
+    // HELPERS IA
 
     private String buildRetentionPlanPrompt(Object contextoCliente, Object prediccionModelo) {
         String contextoJson = toPrettyJson(contextoCliente);
@@ -173,6 +187,7 @@ public class PredictionService {
         return """
                 Actúa como un Gerente de Retención de Clientes Senior en un Banco Digital.
                 Tu objetivo es crear un plan de recuperación personalizado de 4 semanas para un cliente en riesgo de abandono.
+                Considera devolver los resultados necesarios en Euros.
                 
                 CONTEXTO DEL CLIENTE:
                 %s
@@ -279,7 +294,7 @@ public class PredictionService {
         return date.withDayOfMonth(1);
     }
 
-    // Integration BATCH + UPSERT + PERSIST
+    // Integration BATCH + UPSERT + PERSIST + HELPERS
     public Mono<List<DataIntegrationResponse>> predictIntegrationBatchUpsertAndPersist(List<DataIntegrationRequest> batch) {
         return Mono.fromCallable(() -> persistBatchUpsertAndPredictions(batch))
                 .subscribeOn(Schedulers.boundedElastic());
@@ -292,7 +307,7 @@ public class PredictionService {
 
         // 1) Llamar a Data (FastAPI)
         List<DataIntegrationResponse> responses = fastApiClient.predictBatch(batch).block();
-        if (responses == null) throw new IllegalStateException("Prediction services returned null (batch)");
+        if (responses == null)    throw new DownstreamException("FASTAPI", 502, "Null response from /predict/batch");
 
         // 2) Mapa request por customerId (robusto si se desordena)
         Map<String, DataIntegrationRequest> reqByCustomerId = batch.stream()
@@ -365,9 +380,10 @@ public class PredictionService {
                 prediction.setAiInsight(stored);
                 prediction.setAiInsightStatus(classifyAiInsightStatus(stored));
             }
+           predictionRepository.save(prediction);
 
-            predictionRepository.save(prediction);
         }
+
 
         return responses;
     }
@@ -484,7 +500,7 @@ public class PredictionService {
 
             Customer customer = customerRepository
                     .findByCustomerIdIgnoreCase(customerId)
-                    .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                    .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
             // 1) si ya existe para bucket => devolver desde DB (PERO completa LLM si falta)
             var existingOpt = predictionRepository.findByCustomerIdAndPredictionDateFetchCustomer(customer.getId(), bucketDate);
@@ -532,7 +548,7 @@ public class PredictionService {
             DataIntegrationRequest req = buildIntegrationRequestFromDb(customer, effectiveRefDate);
 
             DataIntegrationResponse res = fastApiClient.predictIntegration(req).block();
-            if (res == null) throw new IllegalStateException("Prediction services returned null");
+            if (res == null) throw new DownstreamException("FASTAPI", 502, "Null response from /predict/integration");
 
             Prediction p = new Prediction();
             p.setCustomer(customer);
@@ -640,7 +656,11 @@ public class PredictionService {
         return Mono.fromCallable(() -> {
 
             // 1) Traer todos los customers registrados
-            List<Customer> customers = customerRepository.findAll(); // (si son muchos, luego lo hacemos paginado)
+            List<Customer> customers = customerRepository.findAll();
+
+            if (customers.isEmpty()) {
+                throw new BusinessException("NO_CUSTOMERS", "No hay clientes registrados para procesar.");
+            }
 
             // 2) Armar batch request desde BD
             List<DataIntegrationRequest> batch = customers.stream()
@@ -750,5 +770,35 @@ public class PredictionService {
             return Map.of("error", "NON_JSON", "message", raw);
         }
     }
+
+    private DataIntegrationRequest normalize(DataIntegrationRequest req) {
+        if (req == null || req.cliente() == null) return req;
+
+        ClienteIn c = req.cliente();
+
+        Integer numProducts = (c.numOfProducts() == null) ? 0 : c.numOfProducts();
+        Float balance = (c.balance() == null) ? 0f : c.balance();
+        Integer isActive = (c.isActiveMember() == null) ? 0 : c.isActiveMember();
+        Integer hasCard = (c.hasCrCard() == null) ? 0 : c.hasCrCard();
+
+        ClienteIn fixed = new ClienteIn(
+                c.rowNumber(),
+                c.customerId(),
+                c.surname(),
+                c.creditScore(),
+                c.geography(),
+                c.gender(),
+                c.age(),
+                c.tenure(),
+                balance,
+                numProducts,
+                hasCard,
+                isActive,
+                c.estimatedSalary()
+        );
+
+        return new DataIntegrationRequest(fixed, req.transacciones(), req.sesiones());
+    }
+
 
 }
