@@ -7,9 +7,11 @@ import java.util.List;
 
 public record DataIntegrationRequest(
         @Valid
-        @NotNull(message = "cliente es requerido")
+        @NotNull(message = "El cliente es requerido")
         ClienteIn cliente,
+        @Valid
         List<TransaccionIn> transacciones,
+        @Valid
         List<SesionIn> sesiones
 ) {
 }

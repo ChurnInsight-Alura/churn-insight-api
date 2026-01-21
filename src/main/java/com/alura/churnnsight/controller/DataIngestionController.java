@@ -66,6 +66,9 @@ public class DataIngestionController {
     public ResponseEntity<Map<String,String>> genericResponse(){
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(Map.of("status","Created"));
+                .body(Map.of(
+                        "status","Created",
+                        "message", "Registro creado correctamente"));
     }
+
 }

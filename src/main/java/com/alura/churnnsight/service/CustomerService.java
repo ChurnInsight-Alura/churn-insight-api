@@ -1,6 +1,7 @@
 package com.alura.churnnsight.service;
 
 import com.alura.churnnsight.dto.consult.*;
+import com.alura.churnnsight.exception.NotFoundException;
 import com.alura.churnnsight.model.Customer;
 import com.alura.churnnsight.repository.CustomerRepository;
 import com.alura.churnnsight.repository.PredictionRepository;
@@ -22,7 +23,7 @@ public class CustomerService {
     public DataCustomerDetail getCustomer(String customerId){
         
         var customer = customerRepository.findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
         return new DataCustomerDetail(customer);
         
     }
@@ -35,14 +36,14 @@ public class CustomerService {
     public Page<DataProductDetail> getCustomerProducts(String customerId, Pageable pageable) {
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
         return customerRepository.findProductsByCustomerId(customer.getId(), pageable).map(DataProductDetail::new);
     }
 
     public DataCustomerStatusDetail getCustomerStatus(String customerId) {
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
         var customerStatus = customerRepository.findStatusByCustomerId(customer.getId());
         return new DataCustomerStatusDetail(customerStatus);
     }
@@ -50,7 +51,7 @@ public class CustomerService {
     public Page<DataAccountDetail> getCustomerAccounts(String customerId, Pageable pageable) {
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new EntityNotFoundException("Customer not found"));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
         return customerRepository.findAccountsByCustomerId(customer.getId(), pageable).map(DataAccountDetail::new);
     }
 }

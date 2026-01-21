@@ -1,6 +1,5 @@
 package com.alura.churnnsight.exception;
 
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -43,10 +42,12 @@ public class GlobalExceptionHandler {
 
     // Error 400 - argumentos inválidos
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(
-                Map.of("error", ex.getMessage(),
-                        "message", ex.getMessage()
+                Map.of(
+                        "message", ex.getMessage(),
+                        "code", "BAD_REQUEST",
+                        "details", List.of()
                 )
         );
     }
@@ -87,14 +88,21 @@ public class GlobalExceptionHandler {
         );
     }
 
-    // Error 502 - FastAPI/downstream (si creas DownstreamException)
+    // Error 502 o 504- FastAPI/downstream
     @ExceptionHandler(DownstreamException.class)
     public ResponseEntity<Map<String, Object>> handleDownstream(DownstreamException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+        int status = ex.getStatus(); // 502, 504
+        String code = (status == 504) ? "DOWNSTREAM_TIMEOUT" : "DOWNSTREAM_ERROR";
+        return ResponseEntity.status(status).body(
                 Map.of(
                         "message", "Error comunicándose con el servicio de predicción.",
-                        "code", "DOWNSTREAM_ERROR",
-                        "details", List.of()
+                        "code", code,
+                        "details", List.of(
+                                Map.of(
+                                        "service", ex.getService(),
+                                        "status", ex.getStatus()
+                                )
+                        )
                 )
         );
     }

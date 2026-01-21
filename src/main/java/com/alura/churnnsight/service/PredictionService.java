@@ -102,7 +102,7 @@ public class PredictionService {
 
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new NotFoundException("Customer not found: " + customerId));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
         Long id = customer.getId();
 
@@ -160,7 +160,7 @@ public class PredictionService {
     public Page<DataPredictionDetail> getPredictionsByCustomerId(String customerId, Pageable pageable) {
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
-                .orElseThrow(() -> new NotFoundException("Customer not found: " + customerId));
+                .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
         return predictionRepository.findByCustomerId(customer.getId(), pageable)
                 .map(DataPredictionDetail::new);
@@ -187,6 +187,7 @@ public class PredictionService {
         return """
                 Actúa como un Gerente de Retención de Clientes Senior en un Banco Digital.
                 Tu objetivo es crear un plan de recuperación personalizado de 4 semanas para un cliente en riesgo de abandono.
+                Considera devolver los resultados necesarios en Euros.
                 
                 CONTEXTO DEL CLIENTE:
                 %s
@@ -499,7 +500,7 @@ public class PredictionService {
 
             Customer customer = customerRepository
                     .findByCustomerIdIgnoreCase(customerId)
-                    .orElseThrow(() -> new NotFoundException("Customer not found: " + customerId));
+                    .orElseThrow(() -> new NotFoundException("Customer no encontrado: " + customerId));
 
             // 1) si ya existe para bucket => devolver desde DB (PERO completa LLM si falta)
             var existingOpt = predictionRepository.findByCustomerIdAndPredictionDateFetchCustomer(customer.getId(), bucketDate);

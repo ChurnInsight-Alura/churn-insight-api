@@ -1,9 +1,14 @@
 package com.alura.churnnsight.dto.integration;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 public record ClienteIn(
         @JsonProperty("RowNumber") Integer rowNumber,
+        @Valid
+        @NotNull(message="El customerId del cliente no puede estar vacío")
         @JsonProperty("CustomerId") String customerId,
         @JsonProperty("Surname") String surname,
         @JsonProperty("CreditScore") Integer creditScore,

@@ -1,7 +1,6 @@
 package com.alura.churnnsight.controller;
 
 import com.alura.churnnsight.dto.BatchProResponse;
-import com.alura.churnnsight.dto.DataMakePrediction;
 import com.alura.churnnsight.dto.DataPredictionResult;
 import com.alura.churnnsight.dto.consult.DataPredictionDetail;
 import com.alura.churnnsight.dto.integration.DataIntegrationRequest;
@@ -17,14 +16,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
-import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
 import java.util.List;
-import reactor.core.scheduler.Schedulers;
 
 
 @RestController
@@ -62,7 +58,7 @@ public class PredictionController {
     // PARA MVP
     @PostMapping("/integration")
     public Mono<ResponseEntity<DataIntegrationResponse>> inferPredictionIntegration(
-            @RequestBody DataIntegrationRequest request
+            @Valid @RequestBody DataIntegrationRequest request
     ) {
         return predictionService.predictIntegration(request)
                 .map(ResponseEntity::ok);
@@ -80,7 +76,7 @@ public class PredictionController {
     //Ejecuta batch desde JSON
     @PostMapping("/integration/batch/pro")
     public Mono<ResponseEntity<BatchProResponse>> inferPredictionIntegrationBatchPro(
-            @RequestBody List<DataIntegrationRequest> requestList
+            @Valid @RequestBody List<@Valid DataIntegrationRequest> requestList
     ) {
         return predictionService.predictIntegrationBatchPro(requestList)
                 .map(ResponseEntity::ok);
