@@ -100,6 +100,7 @@ public class PredictionService {
 
     @Transactional
     protected DataPredictionResult predictAndPersist(String customerId) {
+        LocalDate refDate = LocalDate.now();
 
         Customer customer = customerRepository
                 .findByCustomerIdIgnoreCase(customerId)
@@ -107,12 +108,21 @@ public class PredictionService {
 
         Long id = customer.getId();
 
+        int tenureMonths = customer.getTenure(refDate);
+
         int isActiveMember = customer.getStatus() != null && Boolean.TRUE.equals(customer.getStatus().getIsActiveMember()) ? 1 : 0;
+
+        Float balanceDb = customerRepository.CountBalanceByCostumerId(id);
+        float balance = (balanceDb == null) ? 0f : balanceDb;
+
+        Integer numProductsDb = customerRepository.CountProductsByCostumerId(id);
+        int numProducts = (numProductsDb == null) ? 0 : numProductsDb;
 
         DataMakePrediction data = new DataMakePrediction(
                 customer,
-                customerRepository.CountBalanceByCostumerId(id),
-                customerRepository.CountProductsByCostumerId(id),
+                tenureMonths,
+                balance,
+                numProducts,
                 isActiveMember
         );
 
@@ -143,6 +153,9 @@ public class PredictionService {
         }
 
         predictionRepository.save(prediction);
+        System.out.println("tenure"+tenureMonths);
+        System.out.println("balance"+balance);
+        System.out.println("numofproduct"+numProductsDb);
         return response;
     }
 
@@ -158,7 +171,7 @@ public class PredictionService {
     // EXISTENTE: integration request directo (no persiste)
 
     public Mono<DataIntegrationResponse> predictIntegration(DataIntegrationRequest request) {
-        return fastApiClient.predictIntegration(request);
+        return fastApiClient.predictIntegration(normalize(request));
     }
 
     // EXISTENTE: integration desde DB + persistencia
@@ -368,9 +381,10 @@ public class PredictionService {
                 prediction.setAiInsight(stored);
                 prediction.setAiInsightStatus(classifyAiInsightStatus(stored));
             }
+           predictionRepository.save(prediction);
 
-            predictionRepository.save(prediction);
         }
+
 
         return responses;
     }
@@ -757,5 +771,35 @@ public class PredictionService {
             return Map.of("error", "NON_JSON", "message", raw);
         }
     }
+
+    private DataIntegrationRequest normalize(DataIntegrationRequest req) {
+        if (req == null || req.cliente() == null) return req;
+
+        ClienteIn c = req.cliente();
+
+        Integer numProducts = (c.numOfProducts() == null) ? 0 : c.numOfProducts();
+        Float balance = (c.balance() == null) ? 0f : c.balance();
+        Integer isActive = (c.isActiveMember() == null) ? 0 : c.isActiveMember();
+        Integer hasCard = (c.hasCrCard() == null) ? 0 : c.hasCrCard();
+
+        ClienteIn fixed = new ClienteIn(
+                c.rowNumber(),
+                c.customerId(),
+                c.surname(),
+                c.creditScore(),
+                c.geography(),
+                c.gender(),
+                c.age(),
+                c.tenure(),
+                balance,
+                numProducts,
+                hasCard,
+                isActive,
+                c.estimatedSalary()
+        );
+
+        return new DataIntegrationRequest(fixed, req.transacciones(), req.sesiones());
+    }
+
 
 }

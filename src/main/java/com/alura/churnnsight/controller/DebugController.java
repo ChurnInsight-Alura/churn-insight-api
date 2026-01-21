@@ -71,6 +71,7 @@ public class DebugController {
 
         DataMakePrediction data = new DataMakePrediction(
                 customer,
+                customer.getTenure(refDate),
                 customerRepository.CountBalanceByCostumerId(id),
                 customerRepository.CountProductsByCostumerId(id),
                 isActiveMember

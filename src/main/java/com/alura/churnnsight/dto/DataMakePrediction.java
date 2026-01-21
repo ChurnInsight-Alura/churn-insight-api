@@ -22,13 +22,13 @@ public record DataMakePrediction(
         Integer IsActiveMember
 ) {
 
-        public DataMakePrediction(Customer customer,Float balance, Integer numOfProducts, Integer isActiveMember){
+        public DataMakePrediction(Customer customer,Integer tenure,Float balance, Integer numOfProducts, Integer isActiveMember){
                 this(
                         customer.getCustomerId(),
                         customer.getGeography(),
                         customer.getGender().getCode(),
                         customer.getAge(),
-                        customer.getTenure(LocalDate.now()),
+                        tenure,
                         balance,
                         numOfProducts,
                         isActiveMember

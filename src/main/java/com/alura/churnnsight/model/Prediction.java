@@ -1,7 +1,6 @@
 package com.alura.churnnsight.model;
 
 import com.alura.churnnsight.dto.DataPredictionResult;
-import com.alura.churnnsight.model.enumeration.InterventionPriority;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -27,7 +26,6 @@ public class Prediction {
     @Column(name = "predicted_label")
     private int predictedLabel;
 
-
     @Column(name = "intervention_priority")
     private String interventionPriority;
 
@@ -50,8 +48,6 @@ public class Prediction {
 
     @Column(name = "ai_insight_status", nullable = false)
     private String aiInsightStatus = "MISSING";
-
-
 
     public Prediction(DataPredictionResult response, Customer customer) {
         this.predictedProba = response.PredictedProba();

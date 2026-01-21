@@ -12,5 +12,6 @@ public interface CustomerTransactionRepository
     List<CustomerTransaction> findByCustomerId(Long customerId);
     Optional<CustomerTransaction> findByTransactionId(String transactionId);
     Optional<CustomerTransaction> findByCustomerIdAndTransactionId(Long customerId, String transactionId);
+
 }
 
