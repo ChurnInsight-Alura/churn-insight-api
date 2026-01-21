@@ -81,11 +81,11 @@ public class Customer {
             return (int) birthDate.until(LocalDate.now(),ChronoUnit.YEARS);
     }
 
-        public int getTenure(LocalDate referenceDate) {
-            if (createdAt == null || referenceDate == null) return 0;
-            if (referenceDate.isBefore(createdAt)) return 0;
-            return (int) ChronoUnit.MONTHS.between(createdAt, referenceDate) / 12;
-        }
+    public int getTenure(LocalDate referenceDate) {
+        if (createdAt == null || referenceDate == null) return 0;
+        if (referenceDate.isBefore(createdAt)) return 0;
+        return (int) ChronoUnit.MONTHS.between(createdAt, referenceDate);
+    }
 
     public void addProduct(Product product) {
         this.products.add(product);

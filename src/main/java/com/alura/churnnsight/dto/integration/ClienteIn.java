@@ -12,7 +12,7 @@ public record ClienteIn(
         @JsonProperty("Age") Integer age,
         @JsonProperty("Tenure") Integer tenure,
         @JsonProperty("Balance") Float balance,
-        @JsonProperty("NumOfProducts")Integer numOfProducts,
+        @JsonProperty("NumOfProducts") Integer numOfProducts,
         @JsonProperty("HasCrCard") Integer hasCrCard,
         @JsonProperty("IsActiveMember") Integer isActiveMember,
         @JsonProperty("EstimatedSalary") Float estimatedSalary

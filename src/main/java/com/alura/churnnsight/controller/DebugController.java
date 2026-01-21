@@ -10,6 +10,7 @@ import com.alura.churnnsight.repository.AccountRepository;
 import com.alura.churnnsight.repository.CustomerRepository;
 import com.alura.churnnsight.repository.CustomerStatusRepository;
 import com.alura.churnnsight.repository.ProductRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
