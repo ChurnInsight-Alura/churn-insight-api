@@ -40,8 +40,8 @@ class FastApiClientHackathonTest {
                       "CustomerId": "CUST-1",
                       "PredictedProba": 0.77,
                       "PredictedLabel": 1,
-                      "CustomerSegment": "VIP",
-                      "InterventionPriority": "HIGH",
+                      "CustomerSegment": "Valioso - Bajo compromiso",
+                      "InterventionPriority": "Baja - Mantener Contento",
                       "aiInsight": {"summary":"ok"},
                       "aiInsightStatus": "OK"
                     }
@@ -63,6 +63,10 @@ class FastApiClientHackathonTest {
                     assertEquals("CUST-1", res.customerId());
                     assertEquals(1, res.predictedLabel());
                     assertEquals("OK", res.aiInsightStatus());
+
+                    // Opcional (recomendado): asegura contrato real
+                    assertEquals("Valioso - Bajo compromiso", res.customerSegment());
+                    assertEquals("Baja - Mantener Contento", res.interventionPriority());
                 })
                 .verifyComplete();
 
@@ -80,19 +84,19 @@ class FastApiClientHackathonTest {
                     [
                       {
                         "CustomerId":"C1",
-                        "PredictedProba":0.9,
+                        "PredictedProba":49.97,
                         "PredictedLabel":1,
-                        "CustomerSegment":"VIP",
-                        "InterventionPriority":"HIGH",
+                        "CustomerSegment":"Standard",
+                        "InterventionPriority":"Media - Monitorear",
                         "aiInsight":{"summary":"a"},
                         "aiInsightStatus":"OK"
                       },
                       {
                         "CustomerId":"C2",
-                        "PredictedProba":0.1,
-                        "PredictedLabel":0,
-                        "CustomerSegment":"LOW",
-                        "InterventionPriority":"LOW",
+                        "PredictedProba":95.12999725341797,
+                        "PredictedLabel":1,
+                        "CustomerSegment":"Standard",
+                        "InterventionPriority":"Alta - Ofrecer Incentivo",
                         "aiInsight":{"summary":"b"},
                         "aiInsightStatus":"OK"
                       }
@@ -117,6 +121,10 @@ class FastApiClientHackathonTest {
                 .assertNext(list -> {
                     assertEquals(2, list.size());
                     assertEquals("C1", list.get(0).customerId());
+
+                    // Opcional (recomendado): asegura contrato real
+                    assertEquals("Media - Monitorear", list.get(0).interventionPriority());
+                    assertEquals("Alta - Ofrecer Incentivo", list.get(1).interventionPriority());
                 })
                 .verifyComplete();
 
@@ -125,4 +133,3 @@ class FastApiClientHackathonTest {
         assertEquals("/predict/batch", recorded.getPath());
     }
 }
-
