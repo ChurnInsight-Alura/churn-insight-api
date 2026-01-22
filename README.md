@@ -16,9 +16,10 @@
 8. Tecnologías utilizadas
 9. Test Automatizados
 10. Cómo ejecutar el proyecto
-11. Agradecimientos
-12. Desarrolladores del proyecto
-13. Licencia y uso del código
+11. Configuración CORS
+12. Agradecimientos 
+13. Desarrolladores del proyecto 
+14. Licencia y uso del código
 
 ---
 
@@ -240,7 +241,29 @@ La API quedará disponible en:
 
 ---
 
-## 11. Agradecimientos 🤝
+## 11. Configuración CORS (Desarrollo local) 🌐
+
+Cuando el **Frontend** se ejecuta en un origen distinto al Backend (por ejemplo,
+React o Vite en `localhost:3000` o `localhost:5173`), es necesario habilitar CORS
+mediante una variable de entorno.
+
+### Activar CORS en desarrollo local
+
+#### Windows (PowerShell)
+```powershell
+$env:CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
+```
+#### Windows (CMD)
+```bat
+set CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+#### Linux / macOS
+```bash
+export CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+---
+## 12. Agradecimientos 🤝
 
 Agradecemos especialmente a:
 
@@ -251,7 +274,7 @@ Agradecemos especialmente a:
 
 ---
 
-## 12. Desarrolladores del proyecto 👷
+## 13. Desarrolladores del proyecto 👷
 - Amalia Anto Alzamora
   - Rol: Backend Developer
 - Cindy Jiménez Saldarriaga
@@ -263,7 +286,7 @@ Agradecemos especialmente a:
 
 ---
 
-## 13. Licencia y uso del código 📄
+## 14. Licencia y uso del código 📄
 
 Este proyecto fue desarrollado en el marco de un Hackathon educativo, como parte del programa ONE – Oracle Next Education, con el acompañamiento de Alura Latam y NoCountry.
 El objetivo del proyecto es educativo y demostrativo, orientado a mostrar un MVP funcional de análisis de churn end-to-end.
