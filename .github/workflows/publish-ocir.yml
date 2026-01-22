@@ -1,0 +1,28 @@
+name: Build & Push API to OCIR
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  IMAGE_NAME: churn-api
+  TAG: prod
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to OCIR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.OCI_REGISTRY }}
+          username: ${{ secrets.OCI_USERNAME }}
+          password: ${{ secrets.OCI_AUTH_TOKEN }}
+
+      - name: Build and Push image
+        run: |
+          docker build -t ${{ secrets.OCI_REGISTRY }}/${{ secrets.OCI_NAMESPACE }}/${IMAGE_NAME}:${TAG} .
+          docker push ${{ secrets.OCI_REGISTRY }}/${{ secrets.OCI_NAMESPACE }}/${IMAGE_NAME}:${TAG}
